@@ -1,8 +1,8 @@
 # bomblab 报告
 
-姓名：张三
+姓名：李明蔚
 
-学号：2000000000
+学号：2024201517
 
 | 总分 | phase_1 | phase_2 | phase_3 | phase_4 | phase_5 | phase_6 | secret_phase |
 | --------- | ------------- | ------------- | ------------- | ----------------- |-----------|-----------|-----------|
@@ -24,20 +24,94 @@ scoreboard 截图：
 ### phase_1
 
 ```c
-// 附上题目答案
+"If we can be completely simulated, do we need a real reality?"// 附上题目答案
 ```
 
 讲解题目思路
 
+phase_1涉及以下函数，写成伪代码形式：
 
+    void phase_1(char* input)
+    {
+        const char *secret ="问题答案";
+        if (strings_not_equal(input, secret) != 0) 
+        {
+            explode_bomb(); 
+        }
+    }
+
+    int string_length(const char *s) 
+    {
+        int len = 0;
+        while (s[len] != '\0') {
+            len++;
+        }
+        return len;
+    }
+
+    int strings_not_equal(const char *s1, const char *s2) 
+    {
+        int len1 = string_length(s1);
+        int len2 = string_length(s2);
+
+        if (len1 != len2) return 1;
+
+        for (int i = 0; i < len1; i++) 
+        {
+            if (s1[i] != s2[i]) return 1;
+        }
+
+        return 0;
+    }
+
+由此可知，我需要输入的应该和secret相同，才可以避免爆炸。
+
+    1439:	48 8d 35 40 1d 00 00 	lea    0x1d40(%rip),%rsi        # 3180 <_IO_stdin_used+0x180>
+
+根据这行汇编，可知secret在0x3180中，所以打印改地址的内容：x/s 0x3180
+
+得到答案："If we can be completely simulated, do we need a real reality?"
 
 ### phase_2
 
 ```c
-// 附上题目答案
+569060 796741 606758 1121533// 附上题目答案
 ```
 
 讲解题目思路
+
+伪代码如下：
+
+    void phase_2(input)
+    {
+        int a0,a1,a2,a3;
+        if(sscanf(input,"%d %d %d %d",&a0, &a1, &a2, &a3)!=4)
+        {
+            explode_bomb();
+        }
+        int matA[2][3],matB[3][2];
+        int result[2][2];
+        for(int row=0; row<2; row++)
+        {
+            for(int col=0; col<2; col++)
+            {
+                int sum=0;
+                for(int k=0; k<3; k++)
+                    sum+= matA[row][k] * matB[k][col];
+                result[row][col]=sum;
+            }
+        }
+        if (result[0][0] != a0 ||result[0][1] != a1 ||result[1][0] != a2 ||result[1][1] != a3)
+        explode_bomb();
+    }
+
+所以题目实际让我做的是手算result的结果，即矩阵A*B的结果，所以我需要知道矩阵A，B具体的值,输入以下指令：
+![alt text](image.png)
+![alt text](image-1.png)
+
+根据上文分析出的A,B的size，即A-2*3，B—3*2，进行矩阵乘法，得到结果：
+result[2][2]=[[569060,796741],[606758,1121533]]
+
 
 ### ......
 
