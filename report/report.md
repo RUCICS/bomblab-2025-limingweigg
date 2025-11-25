@@ -112,6 +112,119 @@ phase_1涉及以下函数，写成伪代码形式：
 根据上文分析出的A,B的size，即A-2*3，B—3*2，进行矩阵乘法，得到结果：
 result[2][2]=[[569060,796741],[606758,1121533]]
 
+### phase_3
+
+```c
+5 -653// 附上题目答案
+```
+
+讲解题目思路
+
+伪代码如下：
+
+    void phase_3(char *input) 
+    {
+        int x; // 对应栈位置 (%rsp)
+        int y; // 对应栈位置 0x4(%rsp)
+        int result = 0;
+
+        // 1561: sscanf 读取两个整数
+        // 156d: 检查返回值，必须成功读取两个数 (返回值 > 1)
+        if (sscanf(input, "%d %d", &x, &y) <= 1) 
+        {
+            explode_bomb();
+        }
+
+        // 1572 - 1579: 初始检查 y 的符号
+        // 1572: cmpl $0, y
+        // 1577: js 157e (如果 y 是负数，跳过炸弹)
+        // 1579: call explode_bomb (如果 y >= 0，爆炸)
+        if (y >= 0) 
+        {
+            explode_bomb();
+        }
+
+        // 157e - 1582: 检查 x 的范围
+        // 如果 x > 7，跳转到 1622 爆炸
+        if (x > 7) 
+        {
+            explode_bomb();
+        }
+
+        // 1588 - 1599: Switch 跳转表逻辑
+        // 根据 x 的值跳转到不同的计算路径
+        switch (x) 
+        {
+        case 0:
+            // 路径: 159b -> 15a0 -> 15a5 -> 15aa -> 15b0 (爆炸)
+            // result = 0x133 - 0x15a + 0x1c7 - 0x28d; // 计算后依然遇到炸弹
+            explode_bomb(); 
+            break;
+        case 1:
+            // 路径: 15f1 -> 15a0 -> ... -> 15b0 (爆炸)
+            explode_bomb();
+            break;
+        case 2:
+            // 路径: 15f8 -> 15a5 -> ... -> 15b0 (爆炸)
+            explode_bomb();
+            break;
+        case 3:
+            // 路径: 15ff -> 15aa -> 15b0 (爆炸)
+            explode_bomb();
+            break;
+            
+        // 注意：只有 case 4, 5, 6, 7 跳过了 15b0 处的 explode_bomb
+        
+        case 4:
+            // 路径: 1606 -> 15b5
+            // 初始 eax 由 rbx(0) + 0x28d 得到
+            result = 0; 
+            result += 0x28d; // 15b5: lea
+            result -= 0x28d; // 15bb: sub
+            result += 0x28d; // 15c0: add
+            result -= 0x28d; // 15c5: sub
+            // 最终 result = 0
+            //但因为已经在开始限定y<0,所以此种情况舍去
+            break;
+            
+        case 5:
+            // 路径: 160d -> 15bb
+            result = 0;
+            result -= 0x28d; // 15bb: sub (0 - 653 = -653)
+            result += 0x28d; // 15c0: add (-653 + 653 = 0)
+            result -= 0x28d; // 15c5: sub (0 - 653 = -653)
+            // 最终 result = -653
+            break;
+            
+        case 6:
+            // 路径: 1614 -> …… -> 15d6
+            explode_bomb();
+            break;
+            
+        case 7:
+            // 路径: 161b -> 15d6
+            explode_bomb();
+            break;
+            
+        default:
+            explode_bomb();
+    }
+
+    // 15ca: 再次检查 x 的范围
+    // 如果 x > 5，跳转到 15d6 爆炸
+    if (x > 5) 
+    {
+        explode_bomb();
+    }
+    // 15d0: 比较计算结果和 y
+    if (result != y) 
+    {
+        explode_bomb();
+    }
+
+    }
+
+由此得到答案：5，-653
 
 ### ......
 
