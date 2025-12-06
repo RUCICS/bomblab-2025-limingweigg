@@ -226,6 +226,223 @@ result[2][2]=[[569060,796741],[606758,1121533]]
 
 由此得到答案：5，-653
 
+
+### phase_4
+
+```c
+31 CA// 附上题目答案
+```
+
+讲解题目思路
+
+伪代码如下：
+
+    int func4_1(int n)
+    {
+        int eax = 0;          // mov $0, %eax
+        if (n <= 0)           // test %edi,%edi ; jle 1658
+            return 0;
+        eax = n;              // mov %edi,%eax
+        if (n == 1)           // cmp $1,%edi ; je 1658
+        return eax;            // return n
+        eax = func4_1(n - 1); // sub $1,%edi ; call func4_1
+        eax = 2 * eax + 1;    // lea 0x1(%rax,%rax,1),%eax
+        return eax;           // ret
+    }
+
+由此可知，f(1)=1, f(n)=2*f(n-1)+1 (n>=1)，通式即为f(n)=2^n-1。
+
+
+    void func4_2(int n, int move, char from, char to, char temp, char *out)
+    {
+        // 1667: mov %edx,%r12d  -> 保存 from
+        // 166a: mov %ecx,%r13d  -> 保存 to
+        // 167d: r14d 保存 temp
+        // rbp 保存 out 指针    
+        if (n == 1) 
+        {
+            // 169f: base case
+            // mov %dl,0x0(%rbp) : out[0] = dl (from)
+            // mov %cl,0x1(%rbp) ； out[1] = cl (to)
+            //movb $0x0,0x2(%r9) :  out[1] = '\0'
+            out[0] = from;
+            out[1] = to;
+            out[2] = '\0';
+            return;
+        }
+
+        // 1681: call func4_1(n-1)
+        int t = func4_1(n - 1);  // t = 2^(n-1) - 1
+        if (t >= move) 
+        {
+            // 16b9: ecx = r14b (temp)
+            // 16bd: edx = r12b (from)
+            // 16c4: r8d = r13b (to)
+            // 16c8: esi = 原来的 move
+            // 16ca: edi = n-1
+            func4_2(n - 1, move, from, temp, to, out);
+        } 
+        else 
+        {
+            int mid = t + 1;
+            if (move == mid) 
+            {
+                // 168a..1699：正好是中间那一步，直接 from->to
+                // 1691: out[0] = r12b (from)
+                // 1695: out[1] = r13b (to)
+                out[0] = from;
+                out[1] = to;
+                out[2] = '\0';
+            } 
+            else 
+            {
+                // 16d4: ecx = r13b (to)
+                // 16d8: edx = r14b (temp)
+                // 16dc: ebx = move - t
+                // 16de: esi = (move - t) - 1 = move - t - 1
+                // 16e4: r8d = r12b (from)
+                int new_move = move - t - 1;
+                func4_2(n - 1, new_move, temp, to, from, out);
+            }
+        }
+    }
+
+由此可知，func4_2写的是递归完成汉诺塔移动。move 从 1 开始计数；func4_1(n-1) 计算出先搬 n-1 个盘子所需步数；第 t+1 步是最大盘 from→to；前半段、后半段分别递归，但柱子角色做了轮换。
+
+    void phase_4(const char *user_input)
+    {
+        int  intput1;        // 对应 0xc(%rsp)
+        char input2[16];    // 对应 0x10(%rsp)，比实际用的 3 字节大很多，安全
+        char output[3];  // 对应 0x14(%rsp)，存 func4_2 的结果
+
+        // 1707: rcx = &input2
+        // 170c: rdx = &input1
+        // 1711: rsi = format string (推断为 "%d %s" 一类)
+        // 1718: call __isoc99_sscanf
+        if (sscanf(user_input, "%d %s", &int_val, str_val) != 2) 
+        {
+            explode_bomb();
+        }
+        // 1722: edi = 5 ; call func4_1
+        int t = func4_1(5);   // target = 2^5 - 1 = 31
+
+        if (input != t) 
+        {
+            explode_bomb();
+        }
+
+        // 1732: rdi = &input2 ; call string_length
+        // 173c: cmp $2,%eax ; jne explode_bomb
+        if (string_length(input2) != 2) 
+        {
+            explode_bomb();
+        }
+
+        // 1741: rbx = &output
+        // 1749: r9  = rbx            -> 输出缓冲区
+        // 174f: r8d = 0x42 'B'
+        // 1754: ecx = 0x43 'C'
+        // 1759: edx = 0x41 'A'
+        // 175e: esi = 10
+        // 1763: edi = 5
+        func4_2(5, 10, 'A', 'C', 'B', output_str);
+
+        // 1768: rdi = &input2 (用户输入)
+        // 176d: rsi = &output
+        // 1770: call strings_not_equal
+        if (strings_not_equal(input2, output)) 
+        {
+            explode_bomb();
+        }
+    }
+
+由此可知，我要求的有两个：
+
+1. f(5)=2^5-1=31,所以第一个输入为31
+
+2. func4_2(5, 10, 'A', 'C', 'B', output_str)，即需要求出5个圆盘，第10步，从哪里挪向哪里，这里我一步一步手推：
+    
+    (1) 5个盘子，A->C，第10步，前15步是第一部分，说明这第10步在第一部分。
+    
+    (2) 问题转为，4个盘子，A->B，第10步，前7步第一部分，第8步第二部分，后7步第三部分，说明这第10步在第三部分。
+
+    (3) 问题转为，3个盘子，C->B，第2步，前3步第一部分，说明这第2步在第一部分。
+
+    (4) 问题转为，2个盘子，C->A，第2步，由此我们可以直接得到答案：C->A。
+
+综上所述，答案为31 CA
+
+
+
+### phase_5
+
+```c
+-2 21// 附上题目答案
+```
+
+讲解题目思路
+
+伪代码如下：
+
+    void phase_5(char *input)
+    {
+        int x;        // (%rsp)
+        int y;        // 0x4(%rsp)
+        if (sscanf(input, "%d %d", &x, &y) <= 1)explode_bomb();
+        if (x >= 0)explode_bomb();
+        x = x & 0xF;
+        if (x == 15)explode_bomb();
+
+        int sum = 0;     // %ecx
+        int count = 0;   // %edx
+        int *arr = array; // 3240 <array.0>
+
+        while (1)
+        {
+            count++;               // add $0x1,%edx
+            x = arr[x];            // mov (%rsi,%rax,4),%eax
+            sum += x;              // add %eax,%ecx
+
+            if (x == 15)           // 到终点 15 才停
+                break;
+        }
+
+        x = 15;                    // movl   $0xf,(%rsp)
+        if (count != 2)explode_bomb();
+        if (sum != y)explode_bomb();
+    }
+
+由此可知，本题就是要求输入一个起点x(x<0)，让程序按array[x] -> array[array[x]] 追踪，必须刚好两步走到 15，且路径上的两个数之和 = y。
+
+首先打印出array数组：
+
+(gdb) x/16dw 0x3240
+0x3240 <array.0>:       10      2       14      7
+0x3250 <array.0+16>:    8       12      15      11
+0x3260 <array.0+32>:    0       4       1       13
+0x3270 <array.0+48>:    3       9       6       5
+
+由此可知array[14]=6,array[6]=15;
+
+所以x=14，y=6+15=21；
+
+又因为x<0,14的二进制为1110，而1110对于一个有符号数而言，其真实值是-2，所以x=-2。
+
+综上，答案为-2 21
+
+
+### phase_6
+
+```c
+-2 21// 附上题目答案
+```
+
+讲解题目思路
+
+伪代码如下：
+
+
+
 ### ......
 
 ## 反馈/收获/感悟/总结

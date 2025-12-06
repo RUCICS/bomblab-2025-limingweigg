@@ -1,3 +1,6 @@
 "If we can be completely simulated, do we need a real reality?"
 569060 796741 606758 1121533
 5 -653
+31 CA
+-2 21
+1 2 3 5 6 4
