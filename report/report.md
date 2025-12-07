@@ -434,12 +434,149 @@ result[2][2]=[[569060,796741],[606758,1121533]]
 ### phase_6
 
 ```c
--2 21// 附上题目答案
+1 2 3 5 6 4// 附上题目答案
 ```
 
 讲解题目思路
 
 伪代码如下：
+
+    // 节点结构（根据 gdb 结果推断）
+    typedef struct Node 
+    {
+        int value;          // *(int *)node
+        struct Node *next;  // *(node + 8)
+    } Node;
+    Node node1;      // 6210 <node1>
+    void phase_6(char *input)
+    {
+        int nums[6];          // 对应 0x10(%rsp) 开始的 6 个 int
+        Node *node[6];   // 对应 0x30(%rsp) 开始的 6 个指针
+        Node *p;
+        int i, j;
+        read_six_numbers(input, nums);
+        /*
+        1865: lea 0x10(%rsp),%r14     -> r14 = &nums[0]
+        186f: mov %r14,%rsi           -> 第二个参数 = &nums
+        1872: call read_six_numbers
+        */
+        for (i = 0; i < 6; i++)
+        {
+            if (nums[i] < 1 || nums[i] > 6)
+            explode_bomb();
+            /*
+            1951: mov (%r14),%eax     -> eax = nums[i]
+            1954: sub $0x1,%eax
+            1957: cmp $0x5,%eax
+            195a: ja explode_bomb     -> nums[i]-1 > 5 -> nums[i] > 6, 又因为是ja所以无符号，num[i]-1<0时,num[i]-1恒大于5，所以这个判断也包含num[i]<1
+            */
+
+            for (j = i + 1; j < 6; j++) //196a: mov %r15,%rbx;1892: add $0x1,%rbx;1896: cmp $0x5,%ebx;1899: jg 1946
+            {
+                if (nums[i] == nums[j])
+                    explode_bomb();
+            /*
+            189f: mov 0x0(%r13,%rbx,4),%eax -> eax = nums[j]
+            18a4: cmp %eax,0x0(%rbp)        -> 比较 nums[j] 和 nums[i]
+            18a7: jne 1892 <phase_6+0x4b>   -> 相等则炸
+            */
+            }
+        }
+        int *p   = &nums[0];      // r12 = &nums[0]
+        int *end = &nums[6];      // rdx = &nums[6]
+        while (p != end)          // cmp r12,rdx ; jne
+        {
+            *p = 7 - *p;          // mov $7,%ecx;sub (%r12),%eax;add $0x4,%r12
+            p++;                  // 对应: add $0x4,%r12
+        }
+        i = 0;                                       // rsi = 0
+        while (i < 6)                               // 18ff: cmp $6,%rsi;jne
+        {
+            int index = nums[i];                    // 18d6: mov 0x10(%rsp,%rsi,4){nums[i]} -> ecx
+            p = &node1;                             // 18df: lea node1 -> rdx
+            j = 1;                                  // 18da: eax = 1
+            while (j < index)                      // 18f2: cmp ecx, eax
+            {
+                p = p->next;                       // 18eb: mov 0x8(%rdx),%rdx
+                j++;                                // 18ef: add $1,%eax
+            }
+            node[i] = p;                       // 18f6: mov %rdx,0x30(%rsp,%rsi,8){node[i]}
+            i++;                                    // 18fb: add $1,%rsi
+        }
+
+        for (i = 0; i < 5; i++)
+            node[i]->next = node[i + 1];
+        node[5]->next = NULL;
+        /*
+        1905: mov 0x30(%rsp),%rbx
+        190f: mov %rax,0x8(%rbx)    → node[0]->next = node[1]
+        1918: mov %rdx,0x8(%rax)    → node[1]->next = node[2]
+        ...
+        1937: movq $0x0,0x8(%rax)   → ndoe[5]->next = NULL
+        */
+
+        p = node[0];
+        for (i = 0; i < 5; i++)
+        {
+            if (p->next->value >= p->value)
+                explode_bomb();
+            p = p->next;
+        }
+        /*
+        197b: mov 0x8(%rbx),%rax    → rax = p->next
+        197f: mov (%rax),%eax       → eax = p->next->value
+        1981: cmp %eax,(%rbx)       → 比较 p->value 与 next->value
+        1983: jge                   → next >= cur 时炸
+        */
+        return 0;
+}
+
+由此观之，本题基本逻辑是输入6个数，将这六个数做一个（7-x）的线性映射，按照映射后的结果重排链表，使得重排后的链表严格单调递减。
+
+所以，现在我应该先知道原链表的值。
+
+![alt text](image-2.png)
+
+根据图片信息，可以得到以下数据：
+
+node1 @ 0x6210:
+  0x2e 0x02 0x00 0x00  | value
+  0x01 0x00 0x00 0x00  | index
+  0x20 0x62 0x00 0x00 0x00 0x00 0x00 0x00 | next = 0x6220
+
+node2 @ 0x6220:
+  0xbb 0x02 0x00 0x00  | value
+  0x02 0x00 0x00 0x00  | index
+  0x30 0x62 ...        | next = 0x6230
+
+node3 @ 0x6230:
+  0xe9 0x00 0x00 0x00  | value
+  0x03 0x00 0x00 0x00  | index
+  0x40 0x62 ...        | next = 0x6240
+
+node4 @ 0x6240:
+  0xdb 0x02 0x00 0x00  | value
+  0x04 0x00 0x00 0x00  | index
+  0x50 0x62 ...        | next = 0x6250
+
+node5 @ 0x6250:
+  0x0a 0x03 0x00 0x00  | value
+  0x05 0x00 0x00 0x00  | index
+  0x60 0x62 ...        | next = 0x6260
+
+node6 @ 0x6260:
+  0x28 0x36 0x00 0x00  | value
+  0x06 0x00 0x00 0x00  | index
+  0x00 ...             | next = NULL
+
+转化为十进制,各个节点的值分别为: 558,699,233,731,778,13864
+
+将其倒序排列后的index为：6,5,4,2,1,3
+
+将其反向映射（7-x=y->x=7-y）:1,2,3,5,6,4
+
+综上，答案为：1 2 3 5 6 4
+
 
 
 
