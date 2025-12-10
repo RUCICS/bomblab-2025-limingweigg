@@ -578,20 +578,129 @@ node6 @ 0x6260:
 综上，答案为：1 2 3 5 6 4
 
 
+### secret_phase
+
+```c
+33022// 附上题目答案
+```
+
+讲解题目思路
+
+首先，我们需要进入secret_phase，经过尝试，发现在phase_6的答案后面输入我的Secret word，即可进入secret_phase。
+
+现在来分析secret_phase和func_7的汇编代码，将其理解为C语言伪代码，大致如下：
+
+    void secret_phase()
+    {
+        char *input=read_line(); //1be4,1be9
+        int len=string_length(input); //1bef
+        if(len>20)
+        {
+            explode_bomb;
+        }              //1bf4,1bf7
+        int x=0,y=0,i=0;
+        int z=func_7(input,x,y,i);
+        if(z==0)explode_bomb;
+        return;
+    }
+
+1b01:44 03 04 b4  add (%rsp,%rsi,4),%r8d
+
+1b08:44 03 5c b4 20  add 0x20(%rsp,%rsi,4),%r11d
+
+1b5f:42 03 44 94 40  add 0x40(%rsp,%r10,4),%eax
+
+1b64:42 03 54 94 60  add 0x60(%rsp,%r10,4),%edx
+
+由这四行我们可以推断出，存在4个数组，即19cf~1ac6对应4个数组：
+    
+A=[-2,-1,1,2,2,1,-1,-2]
+
+B=[1,2,2,1,1,2,2,1]
+    
+C=[-1,0,0,1,1,0,0,-1]
+    
+D=[0,1,1,0,0,-1,-1,0]
+    
+根据：
+
+1b74: mov 0x8(%rsi), %rsi;
+
+1b87: cmpb $0x1, (%rsi,%rdx,1);
+
+可以看出存在matrix[8][];
+
+接下来我先确认matrix的具体内容：
+
+(gdb) p &row0
+$1 = (<data variable, no debug info> *) 0x55555555a1a0 <row0>
+
+(gdb)x/32xb 0x55555555a1a0
+0x55555555a1a0 <row0>: 0x00 0x00 0x01 0x00 0x00 0x01 0x00 0x00 0x55555555a1a8 <row0+8>: 0xb0 0xa1 0x55 0x55 0x55 0x55 0x00 0x00 
+0x55555555a1b0 <row1>: 0x00 0x00 0x00 0x01 0x00 0x00 0x00 0x01 0x55555555a1b8 <row1+8>: 0xc0 0xa1 0x55 0x55 0x55 0x55 0x00 0x00
+
+由此可知matrix的size为[8][8]
+
+row0对应第0行的内容，row0+8对应row1的地址
+
+依次类推：
+
+得到matrix[8][8]=
+[
+    [0,0,1,0,0,1,0,0],
+    [0,0,0,1,0,0,0,1],
+    [1,0,1,0,0,1,0,0],
+    [1,0,0,0,0,0,0,0],
+    [0,1,0,0,1,0,1,0],
+    [1,0,0,1,1,0,0,0],
+    [0,0,0,0,0,1,0,1],
+    [0,1,0,0,0,0,0,0]
+]
+
+    int fun_7(char *input,int x,int y,int i)
+    {
+        char ch=s[i];
+        if (x == 4 && y == 7) 
+        {
+            if (ch == '\0') return 1;
+            else return 0;
+        } //1ace~1ae7
+        if (ch == '\0') return 0; //1adf~1ae7
+        if (i > 19) return 0;  //1ae9~1af2
+        int n=ch&7; //1af7,1afb
+        int tx = x + C[n];  //1b5f
+        int ty = y + D[n];  //1b64
+        if (tx < 0 || tx > 7 || ty < 0 || ty > 7)return 0; //1b70~1b8b
+        if (matrix[tx][ty] == 1)return 0;  //1b87,1b8b
+        int nx = x + A[n];  //1b01
+        int ny = y + B[n];  //1b08
+        if (nx < 0 || nx > 7 || ny < 0 || ny > 7)return 0; //1b0d~1b1b
+        if (matrix[nx][ny] == 1)return 0;  //1b94~1bb6
+        return func7(s, nx, ny, i+1);  //1bbc~1bc6
+    }
+
+由此观之，本题题意是从(0,0)走向(4,7),每次走的方向为A[k],B[k],对应matrix[nx][ny]，同时需要检验临近方向C[k],D[k]，即matrix[tx][ty]，不能为1。由此，经过遍历尝试，得到路径，33022
+
+综上，答案为：33022
 
 
-### ......
 
 ## 反馈/收获/感悟/总结
 
 <!-- 这一节，你可以简单描述你在这个 lab 上花费的时间/你认为的难度/你认为不合理的地方/你认为有趣的地方 -->
-
+我觉得难度很大，寄存器太多，很容易乱，所以做的很慢。
 <!-- 或者是收获/感悟/总结 -->
-
+相应的收获也很大，对汇编语言的熟练度有了很大提升
 <!-- 200 字以内，可以不写 -->
 
 ## 参考的重要资料
 
 <!-- 有哪些文章/论文/PPT/课本对你的实现有重要启发或者帮助，或者是你直接引用了某个方法 -->
-
+CSAPP：chapter 3
+1-5-machine-arch.ppt
+1-5-machine-arch-preview.ppt
+1-6-machine-intro.ppt
+1-7-machine-basics.ppt
+1-8-machine-control-preview.ppt
+1-9-machine-procedure-review.pptx
 <!-- 请附上文章标题和可访问的网页路径 -->
