@@ -11,7 +11,7 @@
 
 scoreboard 截图：
 
-![image](./imgs/image.png)
+![image](![alt text](image-3.png))
 
 <!-- TODO: 用一个scoreboard的截图，本地图片，放到 imgs 文件夹下，不要用这个 github，pandoc 解析可能有问题 -->
 
